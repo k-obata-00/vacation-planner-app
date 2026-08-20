@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VacationPlanner</title>
+<link rel="manifest" href="./manifest.json">
+<meta name="theme-color" content="#66cdaa">
+<link rel="icon" href="./icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="./icon.svg">
+<link rel="stylesheet" href="./style.css">
+</head>
+<body>
+
+<div class="header">
+  <div class="h-left">
+    <div class="brand">VacationPlanner</div>
+    <nav class="h-nav">
+      <button class="nav-item active" onclick="sw('dashboard',this)">ダッシュボード</button>
+      <button class="nav-item" onclick="sw('suggest',this)">取得提案</button>
+      <button class="nav-item" onclick="sw('settings',this)">設定</button>
+    </nav>
+  </div>
+  <div class="h-right">
+    <button class="icon-btn reload-btn" onclick="location.reload()" title="再読み込み">↺</button>
+  </div>
+</div>
+
+<div class="app">
+
+<!-- ダッシュボード -->
+<div id="dashboard" class="section active">
+  <div class="dash-layout">
+    <!-- 左列 -->
+    <div class="dash-left">
+      <!-- メトリクス -->
+      <div class="stat-col">
+        <div class="stat"><div class="stat-l">付与日数</div><div class="stat-v" id="m-total">-</div></div>
+        <div class="stat"><div class="stat-l">取得済み（日）</div><div class="stat-v sv-green" id="m-used">0</div></div>
+        <div class="stat"><div class="stat-l">取得済み（半日）</div><div class="stat-v sv-amber" id="m-half">0</div></div>
+        <div class="stat"><div class="stat-l">時間取得</div><div class="stat-v sv-purple" id="m-hours">0h</div></div>
+        <div class="stat"><div class="stat-l">残日数</div><div class="stat-v" id="m-remain">-</div></div>
+        <div class="stat">
+          <div class="prog-label"><span class="stat-l" style="margin:0">消化状況</span><span id="rate-txt" style="font-size:11px;color:var(--tx2)">0%</span></div>
+          <div class="prog-track" style="margin:6px 0 5px"><div class="prog-fill" id="prog" style="width:0%"></div></div>
+          <div class="stat-note" id="status-msg"></div>
+        </div>
+      </div>
+      <div id="cal-work-summary" class="card"></div>
+      <!-- フルカレンダー -->
+      <div class="card cal-card">
+        <div class="cal-nav">
+          <button class="icon-btn" onclick="prevM()">&#8249;</button>
+          <div class="cal-center">
+            <div class="cal-month" id="cal-title"></div>
+            <div class="cal-sub" id="cal-sub"></div>
+            <button class="today-btn" onclick="goToday()">今日</button>
+          </div>
+          <button class="icon-btn" onclick="nextM()">&#8250;</button>
+        </div>
+        <div class="cal-dow-row">
+          <div class="cal-dow sun">日</div><div class="cal-dow">月</div><div class="cal-dow">火</div>
+          <div class="cal-dow">水</div><div class="cal-dow">木</div><div class="cal-dow">金</div><div class="cal-dow sat">土</div>
+        </div>
+        <div class="cal-body" id="cal-grid"></div>
+        <div class="legend">
+          <div class="leg-item"><div class="leg-dot" style="background:#f0fdf4;border:1px solid #86efac"></div>全日</div>
+          <div class="leg-item"><div class="leg-dot" style="background:#fffbeb;border:1px solid #fcd34d"></div>半日</div>
+          <div class="leg-item"><div class="leg-dot" style="background:#f5f3ff;border:1px solid #c4b5fd"></div>時間休</div>
+          <div class="leg-item"><div class="leg-dot" style="background:#eff6ff;border:1px solid #93c5fd"></div>会社休日</div>
+          <div class="leg-item"><div class="leg-dot" style="background:#fef2f2;border:1px solid #fca5a5"></div>祝日</div>
+          <div class="leg-item"><div class="leg-dot" style="background:#f9fafb;border:1px solid #d1d5db"></div>時間外予定</div>
+        </div>
+      </div>
+    </div>
+    <!-- 右列 -->
+    <div class="dash-right">
+      <!-- 有給を追加 -->
+      <div class="card">
+        <div class="card-h">有給を追加</div>
+        <div class="form-group">
+          <label class="form-label">期間</label>
+          <div class="date-range">
+            <input type="date" id="add-s">
+            <span class="range-sep">〜</span>
+            <input type="date" id="add-e">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">種別</label>
+          <div style="display:flex;gap:6px;align-items:center">
+            <select id="add-type" onchange="toggleHoursInput()" style="flex:1">
+              <option value="full">全日</option>
+              <option value="half-am">午前半日</option>
+              <option value="half-pm">午後半日</option>
+              <option value="hourly">時間休</option>
+            </select>
+            <select id="add-hours" style="width:64px;display:none">
+              <option value="1">1</option>
+              <option value="2">2</option>
+              <option value="3">3</option>
+              <option value="4">4</option>
+              <option value="5">5</option>
+              <option value="6">6</option>
+              <option value="7">7</option>
+              <option value="8">8</option>
+            </select>
+          </div>
+        </div>
+        <button class="btn-primary-full" onclick="addVac()">登録</button>
+      </div>
+      <!-- 付与日数算出情報 -->
+      <div class="card">
+        <div class="card-h">付与日数算出情報</div>
+        <div id="grant-info-box"></div>
+      </div>
+      <!-- 取得一覧 -->
+      <div class="card">
+        <div class="card-h">取得一覧</div>
+        <div id="vlist-dash"></div>
+      </div>
+      <!-- 時間外予定一覧 -->
+      <div class="card">
+        <div class="card-h">時間外予定一覧</div>
+        <div id="elist-dash"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- 取得提案 -->
+<div id="suggest" class="section">
+  <div class="card">
+    <div class="card-h-row">
+      <div class="card-h" style="margin:0">効率的な取得提案</div>
+      <div class="filter-row">
+        <select id="sug-sort" onchange="renderSug()" class="filter-sel">
+          <option value="date">日付順</option>
+          <option value="days">日数順</option>
+        </select>
+        <select id="sug-year" onchange="renderSug()" class="filter-sel"></select>
+        <select id="sug-month" onchange="renderSug()" class="filter-sel">
+          <option value="">月（すべて）</option>
+          <option value="1">1月</option><option value="2">2月</option><option value="3">3月</option>
+          <option value="4">4月</option><option value="5">5月</option><option value="6">6月</option>
+          <option value="7">7月</option><option value="8">8月</option><option value="9">9月</option>
+          <option value="10">10月</option><option value="11">11月</option><option value="12">12月</option>
+        </select>
+      </div>
+    </div>
+    <div id="sug-list" style="margin-top:14px"></div>
+  </div>
+</div>
+
+<!-- 設定 -->
+<div id="settings" class="section">
+  <div class="stab-nav-wrap"><nav class="stab-nav">
+    <button class="stab active" onclick="swStab('s-personal',this)">個人設定</button>
+    <button class="stab" onclick="swStab('s-work',this)">時間・稼働</button>
+    <button class="stab" onclick="swStab('s-rules',this)">付与ルール</button>
+    <button class="stab" onclick="swStab('s-company',this)">会社休日</button>
+    <button class="stab" onclick="swStab('s-holidays',this)">祝日管理</button>
+  </nav></div>
+
+  <div id="s-personal" class="stab-pane active">
+    <div class="card">
+      <div class="card-h">個人設定</div>
+      <div class="form-group"><label class="form-label">入社年月日</label><input type="date" id="hire-date" onchange="saveSetting('hire_date',this.value)"></div>
+      <div class="form-group"><label class="form-label">繰越日数</label>
+        <div style="display:flex;align-items:center;gap:6px"><input type="number" id="carryover" value="0" min="0" max="40" onchange="saveSetting('carryover',this.value)" style="width:80px"><span class="unit-label">日</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="s-work" class="stab-pane">
+    <div class="card">
+      <div class="card-h">時間・稼働設定</div>
+      <div class="form-group"><label class="form-label">所定労働時間</label>
+        <div style="display:flex;align-items:center;gap:6px"><input type="number" id="work-hours" value="8" min="1" max="24" step="0.5" onchange="saveSetting('work_hours_per_day',this.value)" style="width:80px"><span class="unit-label">時間 / 日</span></div>
+        <p class="form-hint">時間休の日換算に使用（例: 4時間 = 0.5日）</p>
+      </div>
+      <div class="form-group"><label class="form-label">精算幅下限</label>
+        <div style="display:flex;align-items:center;gap:6px"><input type="number" id="min-hours" value="" min="0" max="400" step="1" onchange="saveSetting('min_work_hours',this.value)" placeholder="未設定" style="width:80px"><span class="unit-label">時間 / 月</span></div>
+        <p class="form-hint">設定するとカレンダーに当月稼働時間の差分を表示</p>
+      </div>
+    </div>
+  </div>
+
+  <div id="s-rules" class="stab-pane">
+    <div class="card">
+      <div class="card-h">付与ルール</div>
+      <p class="form-hint" style="margin-bottom:10px">勤続年数ごとの付与日数</p>
+      <div id="rules-list"></div>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <button class="btn-ghost" onclick="addRule()">+ ルール追加</button>
+        <button class="btn-ghost" style="margin-left:auto;color:var(--tx3)" onclick="resetRules()">標準に戻す</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="s-company" class="stab-pane">
+    <div class="card">
+      <div class="card-h">会社休日</div>
+      <div class="sec-lbl">定休曜日</div>
+      <div id="dow-checks" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px"></div>
+      <div class="sec-lbl">特定日</div>
+      <div class="add-row">
+        <input type="date" id="co-date">
+        <input type="text" id="co-name" placeholder="名称（例：夏季休暇）" style="flex:1;min-width:120px">
+        <button class="btn-primary" onclick="addCoOff()">追加</button>
+      </div>
+      <div id="co-list" style="margin-top:10px"></div>
+    </div>
+  </div>
+
+  <div id="s-holidays" class="stab-pane">
+    <div class="card">
+      <div class="card-h">祝日データ管理</div>
+      <div style="display:flex;gap:6px;align-items:center;margin-bottom:14px;padding-bottom:14px;border-bottom:0.5px solid #f3f4f6">
+        <input type="number" id="fetch-year-input" min="2000" max="2099" style="width:90px" placeholder="年">
+        <span id="fetch-specific-status" style="font-size:12px;color:#9ca3af"></span>
+        <button class="btn-primary" style="margin-left:auto" onclick="fetchSpecificYear()">取得 / 再取得</button>
+      </div>
+      <div id="holiday-years"></div>
+    </div>
+  </div>
+</div>
+
+</div><!-- /.app -->
+
+<!-- ボトムナビ（モバイル） -->
+<nav class="bottom-nav">
+  <button class="bnav-item active" onclick="sw('dashboard',this)">ダッシュボード</button>
+  <button class="bnav-item" onclick="sw('suggest',this)">取得提案</button>
+  <button class="bnav-item" onclick="sw('settings',this)">設定</button>
+</nav>
+
+<!-- モーダル -->
+<div class="modal-overlay hidden" id="modal-overlay" onclick="closeModal(event)">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-title" id="modal-date-label"></div>
+    <div class="modal-opts" id="modal-opts">
+      <button class="modal-opt opt-full" onclick="confirmVac('full')">全日休暇</button>
+      <button class="modal-opt opt-half" onclick="confirmVac('half-am')">午前半日休暇</button>
+      <button class="modal-opt opt-half" onclick="confirmVac('half-pm')">午後半日休暇</button>
+      <button class="modal-opt opt-hour" onclick="showHourInput()">時間休暇</button>
+      <button class="modal-opt opt-event" onclick="showEventInput()">時間外予定</button>
+    </div>
+    <div class="modal-hour-row" id="modal-hour-row">
+      <span class="input-label">時間数：</span>
+      <select id="modal-hours" style="width:70px">
+        <option value="1">1</option>
+        <option value="2">2</option>
+        <option value="3">3</option>
+        <option value="4">4</option>
+        <option value="5">5</option>
+        <option value="6">6</option>
+        <option value="7">7</option>
+        <option value="8">8</option>
+      </select>
+      <span class="input-label" id="modal-hours-max"></span>
+      <button class="btn-primary" onclick="confirmVac('hourly')">登録</button>
+    </div>
+    <div class="modal-hour-row" id="modal-event-row">
+      <input type="text" id="modal-event-label" placeholder="予定名（例：社用外出）" style="flex:1;min-width:110px">
+      <select id="modal-event-type" onchange="toggleEventHours()">
+        <option value="allday">終日</option>
+        <option value="hourly">時間指定</option>
+      </select>
+      <span id="modal-event-hours-wrap" style="display:none;align-items:center;gap:4px">
+        <select id="modal-event-hours" style="width:60px">
+          <option value="1">1</option>
+          <option value="2">2</option>
+          <option value="3">3</option>
+          <option value="4">4</option>
+          <option value="5">5</option>
+          <option value="6">6</option>
+          <option value="7">7</option>
+          <option value="8">8</option>
+        </select>
+        <span class="input-label">h</span>
+      </span>
+      <button class="btn-primary" onclick="confirmEvent()">登録</button>
+    </div>
+    <button class="modal-cancel" onclick="closeModal()">キャンセル</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<script src="./db.js"></script>
+<script src="./repo.js"></script>
+<script src="./app.js"></script>
+<script>
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js', { scope: './' })
+}
+</script>
+</body>
+</html>
